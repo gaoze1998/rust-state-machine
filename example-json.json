@@ -1,0 +1,15 @@
+{
+    "initial_state": "Initial",
+    "transitions": [
+        {
+            "event": "start",
+            "from": "Initial",
+            "to": "Processing"
+        },
+        {
+            "event": "finish",
+            "from": "Processing",
+            "to": "Final"
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+# Rust 项目生成的文件和目录
+/target
+Cargo.lock
+
+# IDE 和编辑器生成的文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统生成的文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+
+# 编译生成的文件
+*.rs.bk
+
+# 文档生成的目录
+/doc
+
+# 测试覆盖率报告
+/coverage
