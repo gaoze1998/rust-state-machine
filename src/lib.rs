@@ -51,7 +51,7 @@ impl StateMachine {
                 if let Some(event) = event_listener.lock().unwrap().listen() {
                     let mut state = current_state.lock().unwrap();
                     if let Some(transition) = Self::find_transition(&transitions, &state, &event) {
-                        println!("状态从 {} 转移到 {}", state, transition.to);
+                        println!("State transition from {} to {}", state, transition.to);
                         *state = transition.to.clone();
                         
                         if let Some(action_name) = &transition.action {
@@ -60,7 +60,7 @@ impl StateMachine {
                             }
                         }
                     } else {
-                        println!("无法从状态 {} 触发事件 {}", state, event);
+                        println!("Unable to trigger event {} from state {}", event, state);
                     }
                 }
             }
