@@ -28,6 +28,20 @@ fn main() {
     let state_machine = StateMachine::load_from_file("example-json.json", event_listener.clone())
         .expect("Failed to load state machine configuration");
 
+    // 注册动作函数
+    state_machine.register_action("process_payment", || {
+        println!("处理支付");
+    });
+    state_machine.register_action("send_shipping_notification", || {
+        println!("发送发货通知");
+    });
+    state_machine.register_action("update_inventory", || {
+        println!("更新库存");
+    });
+    state_machine.register_action("refund_payment", || {
+        println!("退款");
+    });
+
     let order = Arc::new(Order::new(
         "ORD-001".to_string(),
         "John Doe".to_string(),
@@ -48,6 +62,12 @@ fn main() {
     // 让主线程等待一段时间,以便观察状态机的运行
     thread::sleep(Duration::from_secs(6));
 
-    println!("订单 {} 的最终状态: {}", order.id, order.state_machine.get_current_state());
+    println!("订单详情:");
+    println!("  ID: {}", order.id);
+    println!("  客户: {}", order.customer);
+    println!("  金额: {:.2}", order.amount);
+    println!("  最终状态: {}", order.state_machine.get_current_state());
+
     println!("程序结束");
+    
 }

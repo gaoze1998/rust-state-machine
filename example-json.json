@@ -4,27 +4,32 @@
         {
             "event": "Pay",
             "from": "Created",
-            "to": "Paid"
+            "to": "Paid",
+            "action": "process_payment"
         },
         {
             "event": "Ship",
             "from": "Paid",
-            "to": "Shipped"
+            "to": "Shipped",
+            "action": "send_shipping_notification"
         },
         {
             "event": "Deliver",
             "from": "Shipped",
-            "to": "Delivered"
+            "to": "Delivered",
+            "action": "update_inventory"
         },
         {
             "event": "Cancel",
             "from": "Created",
-            "to": "Cancelled"
+            "to": "Cancelled",
+            "action": "refund_payment"
         },
         {
             "event": "Cancel",
             "from": "Paid",
-            "to": "Cancelled"
+            "to": "Cancelled",
+            "action": "refund_payment"
         }
     ]
 }

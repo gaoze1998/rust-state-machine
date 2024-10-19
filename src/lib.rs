@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::{Arc, Mutex};
@@ -9,6 +10,7 @@ struct Transition {
     event: String,
     from: String,
     to: String,
+    action: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -22,6 +24,7 @@ pub struct StateMachine {
     current_state: Arc<Mutex<String>>,
     event_listener: Arc<Mutex<dyn EventListener>>,
     running: Arc<Mutex<bool>>,
+    actions: Arc<Mutex<HashMap<String, Box<dyn Fn() + Send + Sync>>>>,
 }
 
 impl StateMachine {
@@ -31,6 +34,7 @@ impl StateMachine {
             current_state: Arc::new(Mutex::new(config.initial_state)),
             event_listener,
             running: Arc::new(Mutex::new(true)),
+            actions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -55,14 +59,21 @@ impl StateMachine {
         let current_state = self.current_state.clone();
         let event_listener = self.event_listener.clone();
         let transitions = self.transitions.clone();
+        let actions = self.actions.clone();
 
         thread::spawn(move || {
             while *running.lock().unwrap() {
                 if let Some(event) = event_listener.lock().unwrap().listen() {
                     let mut state = current_state.lock().unwrap();
-                    if let Some(new_state) = Self::trigger_event_static(&transitions, &state, &event) {
-                        println!("状态从 {} 转移到 {}", state, new_state);
-                        *state = new_state;
+                    if let Some(transition) = Self::find_transition(&transitions, &state, &event) {
+                        println!("状态从 {} 转移到 {}", state, transition.to);
+                        *state = transition.to.clone();
+                        
+                        if let Some(action_name) = &transition.action {
+                            if let Some(action) = actions.lock().unwrap().get(action_name) {
+                                action();
+                            }
+                        }
                     } else {
                         println!("无法从状态 {} 触发事件 {}", state, event);
                     }
@@ -71,17 +82,19 @@ impl StateMachine {
         });
     }
 
-    fn trigger_event_static(transitions: &[Transition], current_state: &str, event: &str) -> Option<String> {
-        for transition in transitions {
-            if transition.from == current_state && transition.event == event {
-                return Some(transition.to.clone());
-            }
-        }
-        None
+    fn find_transition<'a>(transitions: &'a [Transition], current_state: &str, event: &str) -> Option<&'a Transition> {
+        transitions.iter().find(|t| t.from == current_state && t.event == event)
     }
 
     pub fn get_current_state(&self) -> String {
         self.current_state.lock().unwrap().clone()
+    }
+
+    pub fn register_action<F>(&self, name: &str, action: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.actions.lock().unwrap().insert(name.to_string(), Box::new(action));
     }
 }
 
