@@ -33,45 +33,94 @@
 
    ```json
    {
-     "initial_state": "Initial",
-     "transitions": [
-       {
-         "event": "start",
-         "from": "Initial",
-         "to": "Processing"
-       },
-       {
-         "event": "finish",
-         "from": "Processing",
-         "to": "Final"
-       }
-     ]
+        "initial_state": "Created",
+        "transitions": [
+            {
+                "event": "Pay",
+                "from": "Created",
+                "to": "Paid"
+            },
+            {
+                "event": "Ship",
+                "from": "Paid",
+                "to": "Shipped"
+            },
+            {
+                "event": "Deliver",
+                "from": "Shipped",
+                "to": "Delivered"
+            },
+            {
+                "event": "Cancel",
+                "from": "Created",
+                "to": "Cancelled"
+            },
+            {
+                "event": "Cancel",
+                "from": "Paid",
+                "to": "Cancelled"
+            }
+        ]
    }
    ```
 
 3. 在代码中使用状态机
 
    ```rust
-   use rust_state_machine::{SimpleEventListener, StateMachine, EventListener};
-   use std::thread;
-   use std::time::Duration;
+    use rust_state_machine::{SimpleEventListener, StateMachine};
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
 
-   fn main() {
-       let event_listener = SimpleEventListener::new();
-       let sender = event_listener.get_sender();
-       
-       let mut state_machine = StateMachine::load_from_file("example-json.json", Box::new(event_listener))
-           .expect("Failed to load state machine configuration");
+    struct Order {
+        id: String,
+        customer: String,
+        amount: f64,
+        state_machine: StateMachine,
+    }
 
-       thread::spawn(move || {
-           thread::sleep(Duration::from_secs(2));
-           sender.send(String::from("start")).unwrap();
-           thread::sleep(Duration::from_secs(2));
-           sender.send(String::from("finish")).unwrap();
-       });
+    impl Order {
+        fn new(id: String, customer: String, amount: f64, state_machine: StateMachine) -> Self {
+            Order {
+                id,
+                customer,
+                amount,
+                state_machine,
+            }
+        }
+    }
 
-       state_machine.run();
-   }
+    fn main() {
+        let (event_listener, sender) = SimpleEventListener::new();
+        let event_listener = Arc::new(Mutex::new(event_listener));
+
+        let state_machine = StateMachine::load_from_file("example-json.json", event_listener.clone())
+            .expect("Failed to load state machine configuration");
+
+        let order = Arc::new(Order::new(
+            "ORD-001".to_string(),
+            "John Doe".to_string(),
+            100.0,
+            state_machine,
+        ));
+
+        order.state_machine.run();
+
+        thread::spawn(move || {
+            sender.send(String::from("Pay")).unwrap();
+            thread::sleep(Duration::from_secs(2));
+            sender.send(String::from("Ship")).unwrap();
+            thread::sleep(Duration::from_secs(2));
+            sender.send(String::from("Deliver")).unwrap();
+        });
+
+        // 让主线程等待一段时间,以便观察状态机的运行
+        thread::sleep(Duration::from_secs(6));
+
+        println!("订单 {} 的最终状态: {}", order.id, order.state_machine.get_current_state());
+        println!("程序结束");
+    }
+
    ```
 
 4. 运行你的程序
@@ -80,6 +129,26 @@
    cargo run
    ```
 
+### 详细说明
+
+#### 状态机配置
+
+状态机通过JSON文件进行配置。配置文件包含以下字段:
+
+- `initial_state`: 初始状态
+- `transitions`: 状态转换数组,每个转换包含:
+  - `event`: 触发事件
+  - `from`: 起始状态
+  - `to`: 目标状态
+
+#### 核心组件
+
+1. `StateMachine`: 主要的状态机结构,负责管理状态和处理事件。
+
+2. `EventListener`: 事件监听器trait,用于接收事件。
+
+3. `SimpleEventListener`: `EventListener`的一个简单实现,使用channel进行事件传递。
+
 ## 贡献
 
 欢迎提交问题和拉取请求。对于重大更改,请先开issue讨论您想要更改的内容。
@@ -87,4 +156,3 @@
 ## 许可证
 
 [MIT](https://choosealicense.com/licenses/mit/)
-

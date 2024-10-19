@@ -1,15 +1,30 @@
 {
-    "initial_state": "Initial",
+    "initial_state": "Created",
     "transitions": [
         {
-            "event": "start",
-            "from": "Initial",
-            "to": "Processing"
+            "event": "Pay",
+            "from": "Created",
+            "to": "Paid"
         },
         {
-            "event": "finish",
-            "from": "Processing",
-            "to": "Final"
+            "event": "Ship",
+            "from": "Paid",
+            "to": "Shipped"
+        },
+        {
+            "event": "Deliver",
+            "from": "Shipped",
+            "to": "Delivered"
+        },
+        {
+            "event": "Cancel",
+            "from": "Created",
+            "to": "Cancelled"
+        },
+        {
+            "event": "Cancel",
+            "from": "Paid",
+            "to": "Cancelled"
         }
     ]
 }
