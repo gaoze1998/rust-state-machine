@@ -28,30 +28,15 @@ pub struct StateMachine {
 }
 
 impl StateMachine {
-    pub fn new(config: StateMachineConfig, event_listener: Arc<Mutex<dyn EventListener>>) -> Self {
-        StateMachine {
+    pub fn new(config_loader: &dyn ConfigLoader, event_listener: Arc<Mutex<dyn EventListener>>) -> Result<Self, Box<dyn std::error::Error>> {
+        let config = config_loader.load_config()?;
+        Ok(StateMachine {
             transitions: config.transitions,
             current_state: Arc::new(Mutex::new(config.initial_state)),
             event_listener,
             running: Arc::new(Mutex::new(true)),
             actions: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub fn load_from_file(path: &str, event_listener: Arc<Mutex<dyn EventListener>>) -> Result<Self, Box<dyn std::error::Error>> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let config: StateMachineConfig = serde_json::from_reader(reader)?;
-        Ok(StateMachine::new(config, event_listener))
-    }
-
-    pub fn trigger_event(&self, current_state: &str, event: &str) -> Option<String> {
-        for transition in &self.transitions {
-            if transition.from == current_state && transition.event == event {
-                return Some(transition.to.clone());
-            }
-        }
-        None
+        })
     }
 
     pub fn run(&self) {
@@ -128,5 +113,28 @@ impl EventListener for SimpleEventListener {
             .unwrap()
             .recv()
             .ok()
+    }
+}
+
+pub trait ConfigLoader {
+    fn load_config(&self) -> Result<StateMachineConfig, Box<dyn std::error::Error>>;
+}
+
+pub struct JsonFileLoader {
+    path: String,
+}
+
+impl JsonFileLoader {
+    pub fn new(path: String) -> Self {
+        JsonFileLoader { path }
+    }
+}
+
+impl ConfigLoader for JsonFileLoader {
+    fn load_config(&self) -> Result<StateMachineConfig, Box<dyn std::error::Error>> {
+        let file = File::open(&self.path)?;
+        let reader = BufReader::new(file);
+        let config: StateMachineConfig = serde_json::from_reader(reader)?;
+        Ok(config)
     }
 }

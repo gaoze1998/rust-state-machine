@@ -1,4 +1,4 @@
-use rust_state_machine::{SimpleEventListener, StateMachine};
+use rust_state_machine::{SimpleEventListener, StateMachine, JsonFileLoader};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -25,7 +25,8 @@ fn main() {
     let (event_listener, sender) = SimpleEventListener::new();
     let event_listener = Arc::new(Mutex::new(event_listener));
     
-    let state_machine = StateMachine::load_from_file("example-json.json", event_listener.clone())
+    let config_loader = JsonFileLoader::new("example-json.json".to_string());
+    let state_machine = StateMachine::new(&config_loader, event_listener.clone())
         .expect("Failed to load state machine configuration");
 
     // 注册动作函数

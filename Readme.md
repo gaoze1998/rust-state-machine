@@ -1,180 +1,124 @@
 # Rust 状态机
 
-这是一个用Rust实现的灵活且可配置的状态机库。
+这是一个用Rust实现的灵活、可配置且高效的状态机库。它提供了一种简单而强大的方式来管理复杂的状态转换逻辑。
 
-## 项目优势
+## 主要特性
 
-1. **灵活性**: 通过JSON配置文件定义状态机,易于修改和扩展。
+1. **配置驱动**: 通过JSON文件定义状态机(支持扩展配置文件读取方式)，使配置更加灵活和易于修改。
 
-2. **可重用性**: 核心状态机逻辑封装在库中,可以在多个项目中重复使用。
+2. **高度可重用**: 核心状态机逻辑封装在库中，可在多个项目中复用。
 
-3. **线程安全**: 使用Rust的并发原语确保线程安全。
+3. **并发安全**: 利用Rust的并发原语确保线程安全操作。
 
-4. **事件驱动**: 采用事件监听器模式,支持异步事件处理。
+4. **事件驱动**: 采用事件监听器模式，支持异步事件处理。
 
-5. **错误处理**: 使用Rust的Result类型进行健壮的错误处理。
+5. **强类型错误处理**: 使用Rust的Result类型进行健壮的错误处理。
 
-6. **序列化支持**: 利用serde库实现配置的序列化和反序列化。
+6. **序列化支持**: 通过serde库实现配置的序列化和反序列化。
 
-## 快速使用指南
+7. **自定义动作**: 允许注册自定义动作函数，在状态转换时执行。
 
-1. 添加依赖
+8. **轻量级**: 最小化依赖，保持库的轻量性。
 
-   在你的`Cargo.toml`文件中添加以下依赖:
+## 快速开始
 
-   ```toml
-   [dependencies]
-   rust-state-machine = { path = "path/to/rust-state-machine" }
-   ```
+### 1. 添加依赖
 
-2. 创建状态机配置文件
+在你的`Cargo.toml`文件中添加以下依赖：
 
-   创建一个JSON文件(例如`example-json.json`)来定义你的状态机:
+```toml
+[dependencies]
+rust-state-machine = { path = "path/to/rust-state-machine" }
+```
 
-   ```json
-   {
-       "initial_state": "Created",
-       "transitions": [
-           {
-               "event": "Pay",
-               "from": "Created",
-               "to": "Paid",
-               "action": "process_payment"
-           },
-           {
-               "event": "Ship",
-               "from": "Paid",
-               "to": "Shipped",
-               "action": "send_shipping_notification"
-           },
-           {
-               "event": "Deliver",
-               "from": "Shipped",
-               "to": "Delivered",
-               "action": "update_inventory"
-           },
-           {
-               "event": "Cancel",
-               "from": "Created",
-               "to": "Cancelled",
-               "action": "refund_payment"
-           },
-           {
-               "event": "Cancel",
-               "from": "Paid",
-               "to": "Cancelled",
-               "action": "refund_payment"
-           }
-       ]
-   }
-   ```
+### 2. 创建状态机配置
 
-3. 在代码中使用状态机
+创建一个JSON文件（例如`state_machine_config.json`）来定义你的状态机：
 
-   ```rust
-   use rust_state_machine::{SimpleEventListener, StateMachine};
-   use std::sync::{Arc, Mutex};
-   use std::thread;
-   use std::time::Duration;
+```json
+{
+    "initial_state": "Created",
+    "transitions": [
+        {
+            "event": "Pay",
+            "from": "Created",
+            "to": "Paid",
+            "action": "process_payment"
+        },
+        {
+            "event": "Ship",
+            "from": "Paid",
+            "to": "Shipped",
+            "action": "send_shipping_notification"
+        },
+        {
+            "event": "Deliver",
+            "from": "Shipped",
+            "to": "Delivered",
+            "action": "update_inventory"
+        }
+    ]
+}
+```
 
-   struct Order {
-       id: String,
-       customer: String,
-       amount: f64,
-       state_machine: StateMachine,
-   }
+### 3. 创建状态机
 
-   impl Order {
-       fn new(id: String, customer: String, amount: f64, state_machine: StateMachine) -> Self {
-           Order {
-               id,
-               customer,
-               amount,
-               state_machine,
-           }
-       }
-   }
+在你的Rust代码中创建一个状态机实例：
 
-   fn main() {
-       let (event_listener, sender) = SimpleEventListener::new();
-       let event_listener = Arc::new(Mutex::new(event_listener));
-       
-       let state_machine = StateMachine::load_from_file("example-json.json", event_listener.clone())
-           .expect("Failed to load state machine configuration");
+```rust
+use rust_state_machine::{SimpleEventListener, StateMachine, JsonFileLoader};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+fn main() {
+    // 创建事件监听器和发送器
+    let (event_listener, sender) = SimpleEventListener::new();
+    let event_listener = Arc::new(Mutex::new(event_listener));
+    // 加载配置并创建状态机
+    let config_loader = JsonFileLoader::new("state_machine_config.json".to_string());
+    let state_machine = StateMachine::new(&config_loader, event_listener.clone())
+        .expect("Failed to load state machine configuration");
+    // 注册动作函数
+    state_machine.register_action("process_payment", || {
+        println!("处理支付");
+    });
+    state_machine.register_action("send_shipping_notification", || {
+        println!("发送发货通知");
+    });
+    state_machine.register_action("update_inventory", || {
+        println!("更新库存");
+    });
+    // 启动状态机
+    state_machine.run();
+    // 模拟事件发送
+    thread::spawn(move || {
+        sender.send(String::from("Pay")).unwrap();
+        thread::sleep(Duration::from_secs(1));
+        sender.send(String::from("Ship")).unwrap();
+        thread::sleep(Duration::from_secs(1));
+        sender.send(String::from("Deliver")).unwrap();
+    });
+    // 等待状态机处理事件
+    thread::sleep(Duration::from_secs(3));
+    println!("最终状态: {}", state_machine.get_current_state());
+}
+```
 
-       // 注册动作函数
-       state_machine.register_action("process_payment", || {
-           println!("处理支付");
-       });
-       state_machine.register_action("send_shipping_notification", || {
-           println!("发送发货通知");
-       });
-       state_machine.register_action("update_inventory", || {
-           println!("更新库存");
-       });
-       state_machine.register_action("refund_payment", || {
-           println!("退款");
-       });
+## 详细说明
 
-       let order = Arc::new(Order::new(
-           "ORD-001".to_string(),
-           "John Doe".to_string(),
-           100.0,
-           state_machine,
-       ));
+1. 首先创建`SimpleEventListener`实例和事件发送器。
+2. 使用`JsonFileLoader`从JSON文件加载状态机配置。
+3. 创建`StateMachine`实例，并注册相关的动作函数。
+4. 调用`state_machine.run()`启动状态机。
+5. 使用事件发送器模拟事件的发送。
+6. 主线程等待一段时间，让状态机有足够的时间处理所有事件。
+7. 最后，打印状态机的最终状态。
 
-       order.state_machine.run();
-
-       thread::spawn(move || {
-           sender.send(String::from("Pay")).unwrap();
-           thread::sleep(Duration::from_secs(2));
-           sender.send(String::from("Ship")).unwrap();
-           thread::sleep(Duration::from_secs(2));
-           sender.send(String::from("Deliver")).unwrap();
-       });
-
-       // 让主线程等待一段时间,以便观察状态机的运行
-       thread::sleep(Duration::from_secs(6));
-
-       println!("订单详情:");
-       println!("  ID: {}", order.id);
-       println!("  客户: {}", order.customer);
-       println!("  金额: {:.2}", order.amount);
-       println!("  最终状态: {}", order.state_machine.get_current_state());
-
-       println!("程序结束");
-   }
-   ```
-
-4. 运行你的程序
-
-   ```
-   cargo run
-   ```
-
-### 详细说明
-
-1. 首先，我们创建了一个`SimpleEventListener`实例和一个事件发送器。
-
-2. 然后，我们从JSON文件加载状态机配置。
-
-3. 我们注册了与状态转换相关的动作函数。这些函数将在相应的状态转换发生时被调用。
-
-4. 创建一个`Order`实例，其中包含状态机。
-
-5. 调用`state_machine.run()`启动状态机。
-
-6. 在一个新线程中，我们模拟了一系列事件的发送（Pay、Ship、Deliver）。
-
-7. 主线程等待6秒，让状态机有足够的时间处理所有事件。
-
-8. 最后，我们打印订单详情，包括最终状态。
-
-这个示例展示了如何使用状态机来管理订单的生命周期，从创建到支付、发货和交付。通过配置文件和动作函数的注册，我们可以轻松地定制状态机的行为。
+这个示例展示了如何使用状态机库来管理一个简单的订单流程，从创建到支付、发货和交付。通过配置文件和动作函数的注册，你可以轻松地定制状态机的行为以适应各种复杂的业务逻辑。
 
 ## 贡献
 
-欢迎提交问题和拉取请求。对于重大更改,请先开issue讨论您想要更改的内容。
+欢迎提交问题和拉取请求。对于重大更改，请先开issue讨论您想要更改的内容。
 
 ## 许可证
 
